@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ALEKS Survey: Grouped Data</title>
+<style>
+:root{--bg:#fff;--card:#eef4f0;--ink:#1b422d;--mut:#5a6b61;--g:#016737;--or:#ff9900;--line:#cfdcd3;--in:#fff;--ok:#d9f0e1;--bad:#fde3d4;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#0f1f17;--card:#1a2f23;--ink:#e8f1ea;--mut:#9db3a5;--g:#4cc27f;--line:#2f4a3a;--in:#12251b;--ok:#1e4a30;--bad:#5a3317}}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:960px;margin:0 auto;padding:16px}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;margin:.3em 0}h1{font-size:26px}h2{font-size:21px}h3{font-size:17px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0}
+.wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:520px}
+th{background:var(--g);color:#fff;padding:7px;font-size:14px;text-align:center}td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:center;font-size:15px}
+tr.tot td{background:#e9d08a;color:#1b422d;font-weight:700}
+.btn{background:var(--or);color:#1b422d;border:0;border-radius:10px;padding:11px 18px;font:inherit;font-weight:700;cursor:pointer}
+.btn.alt{background:transparent;border:1px solid var(--g);color:var(--g)}.btn:disabled{opacity:.45}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--in);border:1px solid var(--line);border-radius:8px;padding:8px}textarea{width:100%;min-height:90px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.mut{color:var(--mut);font-size:14px}
+.opts{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:8px 0 16px}
+.opt{border:2px solid var(--line);background:var(--in);color:var(--ink);border-radius:10px;padding:10px 2px;font:inherit;cursor:pointer;line-height:1.2}
+.opt b{display:block;font-size:20px}.opt span{font-size:11px;color:var(--mut)}
+.opt.on{background:var(--g);border-color:var(--g);color:#fff}.opt.on span{color:#fff}
+.stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.sbox{background:var(--in);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}.sbox b{display:block;font-size:26px;color:var(--g)}
+.work{background:var(--in);border-left:4px solid var(--or);padding:8px 12px;margin:6px 0;border-radius:6px;font-size:15px;overflow-x:auto}
+.pill{display:inline-block;border-radius:999px;padding:3px 12px;font-size:13px;font-weight:700;background:var(--ok)}.pill.bad{background:var(--bad)}
+</style></head><body><main id="app"></main>
+<script>
+const Q=['I am on track with my weekly ALEKS module goals.','I enjoy answering ALEKS modules.','I find ALEKS modules challenging to answer.','I use strategies that help me make the most of ALEKS and improve my progress.'];
+const SC=['Strongly disagree','Disagree','Neutral','Agree','Strongly agree'],QS=['On track','Enjoy ALEKS','Find it challenging','Use strategies'];
+const BASE='https://ntfy.sh/',app=document.getElementById('app');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=(x,d=2)=>(Math.round(x*10**d)/10**d).toFixed(d).replace(/\.?0+$/,'')||'0';
+const hash=()=>location.hash.slice(1),code=()=>{const m=hash().match(/^(?:r|teacher)=([A-Za-z0-9]+)/);return m?m[1].toUpperCase():''};
+const topic=()=>BASE+'aleks-survey-'+code().toLowerCase();
+let ans=[0,0,0,0],status='',T={resp:new Map(),w:3,pop:false,conn:'connecting…',es:null};
+function landing(){app.innerHTML=`<h1>ALEKS Survey</h1><p class=mut>Rate each statement, then see what the class data says.</p>
+<div class=card><h2>I’m a student</h2><p>Ask your teacher for the survey link or QR code. Or type the class code:</p><div class=row><input id=cd placeholder="Class code" style="text-transform:uppercase;width:150px"><button class=btn id=go>Join</button></div></div>
+<div class=card><h2>I’m the teacher</h2><button class=btn id=mk>Start a new survey</button></div>`;
+document.getElementById('go').onclick=()=>{const v=document.getElementById('cd').value.trim();if(v)location.hash='r='+v};
+document.getElementById('mk').onclick=()=>{location.hash='teacher='+Math.random().toString(36).slice(2,7).toUpperCase()}}
+function student(){const c=code(),done=localStorage.getItem('aleks-done-'+c);
+if(done){app.innerHTML=`<h1>Thank you! ✓</h1><p>Your response was sent. Wait for your teacher’s next instruction.</p>`;return}
+app.innerHTML=`<h1>ALEKS Survey</h1><p class=mut>No names. Tap one rating for each statement. Class: ${esc(c)}</p>`+Q.map((q,i)=>`<div class=card><b>${i+1}. ${esc(q)}</b><div class=opts>${SC.map((s,k)=>`<button class="opt ${ans[i]==k+1?'on':''}" data-i="${i}" data-v="${k+1}"><b>${k+1}</b><span>${s}</span></button>`).join('')}</div></div>`).join('')+`<button class=btn id=sub ${ans.every(Boolean)?'':'disabled'}>Submit</button><p class=mut>${esc(status)}</p>`;
+document.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{ans[+b.dataset.i]=+b.dataset.v;student()});
+document.getElementById('sub').onclick=async()=>{status='Sending…';student();try{const r=await fetch(topic(),{method:'POST',body:JSON.stringify({id:Math.random().toString(36).slice(2,10),q:ans})});if(!r.ok)throw 0;try{localStorage.setItem('aleks-done-'+c,'1')}catch(e){}student()}catch(e){status='Couldn’t send. Check your connection and tap Submit again.';student()}}}
+function addScores(q){const id='m'+Math.random().toString(36).slice(2,8);T.resp.set(id,q)}
+function grouped(scores,w,pop){const n=scores.length;if(n<2)return null;const cl=[];for(let lo=4;lo<=20;lo+=w)cl.push({lo,hi:lo+w-1,lb:lo-.5,ub:lo+w-.5,f:0});
+scores.forEach(s=>{const c=cl.find(c=>s>=c.lo&&s<=c.hi);if(c)c.f++});let cf=0;cl.forEach(c=>{c.m=(c.lo+c.hi)/2;c.fm=c.f*c.m;cf+=c.f;c.cf=cf});
+const sfm=cl.reduce((a,c)=>a+c.fm,0),mean=sfm/n;cl.forEach(c=>c.d=c.f*(c.m-mean)**2);const ss=cl.reduce((a,c)=>a+c.d,0);
+const mi=cl.findIndex(c=>c.cf>=n/2),mc=cl[mi],cfb=mi?cl[mi-1].cf:0,med=mc.lb+((n/2-cfb)/mc.f)*w;
+const mx=Math.max(...cl.map(c=>c.f)),modal=cl.filter(c=>c.f==mx),oi=cl.indexOf(modal[0]),oc=cl[oi],d1=oc.f-(oi?cl[oi-1].f:0),d2=oc.f-(oi<cl.length-1?cl[oi+1].f:0),mode=d1+d2?oc.lb+d1/(d1+d2)*w:oc.m;
+const dn=pop?n:n-1,vr=ss/dn;return{n,cl,sfm,mean,mc,cfb,med,modal,oc,d1,d2,mode,ss,dn,vr,sd:Math.sqrt(vr),w,pop}}
+function teacher(){const c=code(),url=location.origin+location.pathname+'#r='+c,all=[...T.resp.values()];
+const totals=all.map(q=>q.reduce((a,b)=>a+b,0)),g=grouped(totals,T.w,T.pop);
+let h=`<h1>ALEKS Survey: Results</h1>
+<div class=card><div class=row><div><b>Class code: ${esc(c)}</b><br><span class=mut>Students open: ${esc(url)}</span></div><img alt="QR code" width=130 height=130 src="https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(url)}"></div>
+<p><span class="pill ${T.conn=='live'?'':'bad'}">Live connection: ${esc(T.conn)}</span> <b>${all.length} responses</b></p>
+<details><summary>No connection? Add data by hand</summary><p class=mut>Type one student per line as four ratings (like <code>4 3 5 2</code>), or paste total scores from 4 to 20.</p><textarea id=man placeholder="4 3 5 2&#10;3 3 4 4&#10;14"></textarea><div class=row><button class="btn alt" id=addm>Add</button><button class="btn alt" id=demo>Fill with sample data</button><button class="btn alt" id=clr>Clear all</button></div></details></div>`;
+if(all.length){h+=`<div class="card wrap"><h3>Average rating per statement (1 to 5)</h3><table><tr><th>Statement</th><th>Mean</th><th>Most common rating</th></tr>${Q.map((q,i)=>{const v=all.map(r=>r[i]),cnt=[1,2,3,4,5].map(k=>v.filter(x=>x==k).length);return `<tr><td style="text-align:left">${esc(QS[i])}</td><td>${fmt(v.reduce((a,b)=>a+b,0)/v.length)}</td><td>${cnt.indexOf(Math.max(...cnt))+1}</td></tr>`}).join('')}</table></div>`}
+if(!g){h+=`<div class=card>Waiting for at least 2 responses…</div>`}else{
+h+=`<div class=card><h2>Grouped data: total score (sum of the 4 ratings, 4 to 20)</h2><div class=row><label>Class width <select id=cw>${[2,3,4,5].map(x=>`<option ${x==T.w?'selected':''}>${x}</option>`).join('')}</select></label><label>Variance <select id=vt><option value=s ${T.pop?'':'selected'}>Sample (n − 1)</option><option value=p ${T.pop?'selected':''}>Population (n)</option></select></label></div>
+<div class=wrap><table><tr><th>Class</th><th>Boundaries</th><th>f</th><th>Midpoint (m)</th><th>f·m</th><th>cf</th><th>f(m − x̄)²</th></tr>${g.cl.map(c=>`<tr><td>${c.lo}–${c.hi}</td><td>${c.lb}–${c.ub}</td><td>${c.f}</td><td>${fmt(c.m)}</td><td>${fmt(c.fm)}</td><td>${c.cf}</td><td>${fmt(c.d)}</td></tr>`).join('')}<tr class=tot><td>Total</td><td></td><td>${g.n}</td><td></td><td>${fmt(g.sfm)}</td><td></td><td>${fmt(g.ss)}</td></tr></table></div></div>
+<div class=stat><div class=sbox>Mean<b>${fmt(g.mean)}</b></div><div class=sbox>Median<b>${fmt(g.med)}</b></div><div class=sbox>Mode<b>${fmt(g.mode)}</b></div><div class=sbox>Std. deviation<b>${fmt(g.sd)}</b></div><div class=sbox>Variance<b>${fmt(g.vr)}</b></div></div>
+<div class=card><h3>Mean</h3><div class=work>x̄ = Σfm ÷ n = ${fmt(g.sfm)} ÷ ${g.n} = <b>${fmt(g.mean)}</b></div><p>On average, a student’s total score is about ${fmt(g.mean,1)} out of 20 (the scale runs from 4 to 20).</p>
+<h3>Median</h3><div class=work>Median class: ${g.mc.lo}–${g.mc.lo+T.w-1} (n/2 = ${fmt(g.n/2)})<br>Md = L + [(n/2 − cf<sub>before</sub>) ÷ f]·w = ${g.mc.lb} + [(${fmt(g.n/2)} − ${g.cfb}) ÷ ${g.mc.f}]·${T.w} = <b>${fmt(g.med)}</b></div><p>Half of the class scored about ${fmt(g.med,1)} or lower, and half scored about ${fmt(g.med,1)} or higher.</p>
+<h3>Mode</h3><div class=work>Modal class: ${g.oc.lo}–${g.oc.hi} (f = ${g.oc.f}), d₁ = ${g.d1}, d₂ = ${g.d2}<br>Mo = L + [d₁ ÷ (d₁ + d₂)]·w = ${g.oc.lb} + [${g.d1} ÷ (${g.d1} + ${g.d2})]·${T.w} = <b>${fmt(g.mode)}</b></div><p>The most common scores fall in the ${g.oc.lo}–${g.oc.hi} class, with an estimated mode of about ${fmt(g.mode,1)}.${g.modal.length>1?' Note: '+g.modal.length+' classes tie for the highest frequency, so the data is multimodal (this shows the first one).':''}</p>
+<h3>Variance and standard deviation</h3><div class=work>${g.pop?'σ²':'s²'} = Σf(m − x̄)² ÷ ${g.pop?'n':'(n − 1)'} = ${fmt(g.ss)} ÷ ${g.dn} = <b>${fmt(g.vr)}</b><br>${g.pop?'σ':'s'} = √${fmt(g.vr)} = <b>${fmt(g.sd)}</b></div><p>A typical student’s score is about ${fmt(g.sd,1)} points away from the mean. A small value means scores are close together, and a large value means they are spread out. The variance (${fmt(g.vr,1)}) is the standard deviation squared, so it is in squared points.</p></div>`}
+app.innerHTML=h;
+const $=id=>document.getElementById(id),on=(id,f)=>{if($(id))$(id).onclick=f};
+on('addm',()=>{$('man').value.split(/\r?\n/).forEach(l=>{const n=l.match(/\d+/g);if(!n)return;const v=n.map(Number);if(v.length==4&&v.every(x=>x>=1&&x<=5))addScores(v);else v.forEach(t=>{if(t>=4&&t<=20){const a=[1,1,1,1];let r=t-4,i=0;while(r>0){if(a[i%4]<5){a[i%4]++;r--}i++}addScores(a)}})});teacher()});
+on('demo',()=>{for(let i=0;i<30;i++)addScores(Q.map(()=>Math.min(5,Math.max(1,Math.round(3.3+(Math.random()+Math.random()-1)*2)))));teacher()});
+on('clr',()=>{T.resp.clear();teacher()});
+if($('cw'))$('cw').onchange=e=>{T.w=+e.target.value;teacher()};if($('vt'))$('vt').onchange=e=>{T.pop=e.target.value=='p';teacher()}}
+function connect(){try{T.es=new EventSource(topic()+'/sse?since=all');T.es.onopen=()=>{T.conn='live';teacher()};T.es.onerror=()=>{T.conn='offline (use the manual box)';teacher()};
+T.es.onmessage=e=>{try{const m=JSON.parse(JSON.parse(e.data).message);if(m&&typeof m.id=='string'&&Array.isArray(m.q)&&m.q.length==4&&m.q.every(x=>x>=1&&x<=5)&&!T.resp.has(m.id)){T.resp.set(m.id,m.q.map(Number));teacher()}}catch(x){}}}catch(e){T.conn='offline (use the manual box)'}}
+function route(){if(T.es){T.es.close();T.es=null}const h=hash();if(/^r=/.test(h))student();else if(/^teacher=/.test(h)){teacher();connect()}else landing()}
+addEventListener('hashchange',route);route();
+</script></body></html>
